@@ -117,6 +117,10 @@ export interface Hotkey {
   exclude: string[]
 }
 
+export interface Features {
+  ui?: boolean
+}
+
 export interface Options {
   locale?: string
   timezone?: string
@@ -126,5 +130,6 @@ export interface Options {
   decimalFold?: Partial<DecimalFold>
   zoomAnchor?: ZoomAnchorType | Partial<ZoomAnchor>
   hotkey?: Partial<Hotkey>
+  features?: Partial<Features>
   layout?: Layout
 }

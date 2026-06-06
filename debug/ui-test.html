@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KLC Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #container { width: 100%; height: 100%; overflow: hidden; }
+    .switcher {
+      position: fixed; top: 8px; right: 8px; z-index: 9999;
+      display: flex; gap: 4px;
+    }
+    .switcher button {
+      padding: 3px 8px; border: 1px solid #2a2e39; border-radius: 4px;
+      background: #0f0f0f; color: #76808f; font-size: 10px; cursor: pointer;
+    }
+    .switcher button.active-l { background: #2962ff; color: #fff; border-color: #2962ff; }
+  </style>
+</head>
+<body>
+  <div class="switcher" id="layoutSwitcher">
+    <button data-layout="single" class="active-l">1×1</button>
+    <button data-layout="2x1">2×1</button>
+    <button data-layout="2x2">2×2</button>
+    <button data-layout="3x2">3×2</button>
+    <button data-layout="2x3">2×3</button>
+    <button data-layout="3x3">3×3</button>
+  </div>
+  <div id="container"></div>
+
+  <script type="module">
+    import { init } from '../src/index.ts'
+
+    function clamp (v, min, max) { return Math.min(Math.max(v, min), max) }
+    function randomBetween (min, max) { return min + Math.random() * (max - min) }
+    function randomNormal () {
+      let u = 0, v = 0
+      while (u === 0) u = Math.random()
+      while (v === 0) v = Math.random()
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v)
+    }
+
+    function generateData (count, priceStart = 50000) {
+      const data = []
+      let price = priceStart, volatility = 0.0035, trend = 0.0001
+      const now = Date.now()
+      for (let i = count; i >= 1; i--) {
+        trend = clamp(trend * 0.96 + randomNormal() * volatility * 0.035, -0.004, 0.004)
+        volatility = clamp(volatility * 0.92 + Math.abs(randomNormal()) * 0.00065, 0.0018, 0.032)
+        const shock = randomNormal() * volatility
+        const close = Math.max(1, price * (1 + trend + shock))
+        const bodyHigh = Math.max(price, close), bodyLow = Math.min(price, close)
+        const wickRatio = volatility * randomBetween(0.35, 2.6)
+        const high = bodyHigh * (1 + wickRatio * randomBetween(0.15, 1.1))
+        const low = Math.max(1, bodyLow * (1 - wickRatio * randomBetween(0.15, 1.1)))
+        const rr = (high - low) / (price || 1)
+        const volume = Math.round((450 + price * 0.18) * (1 + rr * 90) * randomBetween(0.55, 1.45))
+        data.unshift({
+          timestamp: now - i * 60000,
+          open: Number(price.toFixed(2)), high: Number(high.toFixed(2)),
+          low: Number(low.toFixed(2)), close: Number(close.toFixed(2)), volume
+        })
+        price = close
+      }
+      return data
+    }
+
+    function createDataLoader (dataList) {
+      return { getBars: ({ type, callback }) => { if (type === 'init') callback(dataList, { forward: true }) } }
+    }
+
+    const symbols = [
+      { id: 'btc', seed: 50000 }, { id: 'eth', seed: 3200 },
+      { id: 'sol', seed: 140 }, { id: 'bnb', seed: 580 },
+      { id: 'ada', seed: 0.45 }, { id: 'xrp', seed: 0.52 },
+      { id: 'doge', seed: 0.12 }, { id: 'avax', seed: 35 }, { id: 'dot', seed: 7 }
+    ]
+
+    const dataMap = Object.fromEntries(symbols.map(s => [s.id, generateData(300, s.seed)]))
+
+    let collection = init('container', {
+      features: { ui: true },
+      multiChart: {
+        panes: symbols.map(s => ({ id: s.id })),
+        layout: 'single',
+        crosshairSync: true,
+      }
+    })
+
+    if (collection && 'getById' in collection) {
+      symbols.forEach(s => {
+        const chart = collection.getById(s.id)
+        if (chart) {
+          chart.setSymbol({ ticker: s.id.toUpperCase() + 'USDT', pricePrecision: 2, volumePrecision: 0 })
+          chart.setPeriod({ span: 1, type: 'minute' })
+          chart.setDataLoader(createDataLoader(dataMap[s.id]))
+          chart.createIndicator('MA')
+        }
+      })
+    }
+
+    // Layout switcher
+    document.querySelectorAll('#layoutSwitcher button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!collection || !('setLayoutPreset' in collection)) return
+        collection.setLayoutPreset(btn.dataset.layout)
+        document.querySelectorAll('#layoutSwitcher button').forEach(b => b.classList.remove('active-l'))
+        btn.classList.add('active-l')
+      })
+    })
+  </script>
+</body>
+</html>

@@ -9,3 +9,12 @@
 .npmrc
 
 .DS_Store
+
+# Large binaries — exceeds GitHub 100MB limit
+.opencode/tools/codebase-memory/codebase-memory-mcp.exe
+
+# AI tooling workspace files (exclude from upstream)
+bundleindex/
+.docs/
+.opencode/
+AGENTS-STARTUP-PROMPT.md

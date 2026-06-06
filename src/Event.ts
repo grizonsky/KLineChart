@@ -388,7 +388,7 @@ export default class Event implements EventHandler {
   }
 
   mouseRightClickEvent (e: MouseTouchEvent): boolean {
-    const { widget } = this._findWidgetByEvent(e)
+    const { pane, widget } = this._findWidgetByEvent(e)
     let consumed = false
     if (widget !== null) {
       const event = this._makeWidgetEvent(e, widget)
@@ -405,7 +405,12 @@ export default class Event implements EventHandler {
         this._chart.updatePane(UpdateLevel.Overlay)
       }
     }
-    return false
+    if (!consumed) {
+      this._chart.getChartStore().executeAction('onContextMenu', {
+        x: e.x, y: e.y, paneId: pane?.getId()
+      })
+    }
+    return consumed
   }
 
   mouseDoubleClickEvent (e: MouseTouchEvent): boolean {

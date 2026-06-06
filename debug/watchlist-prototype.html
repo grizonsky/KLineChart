@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KLC Watchlist Prototype</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --underlay: #1c1c1c;
+      --bg: #0f0f0f;
+      --panel: #0f0f0f;
+      --text: #d1d4dc;
+      --border: #2a2e39;
+      --accent: #2962ff;
+      --green: #2DC08E;
+      --red: #F92855;
+      --muted: #76808F;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--underlay);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .klc-layout {
+      height: 100vh;
+      display: grid;
+      grid-template-columns: 52px 1fr 52px;
+      grid-template-rows: 48px 1fr 40px;
+      grid-template-areas:
+        "top    top    top"
+        "left   chart  right"
+        "left   bottom right";
+    }
+
+    .klc-layout.watchlist-open {
+      grid-template-columns: 52px 1fr 300px;
+    }
+
+    .klc-topbar {
+      grid-area: top;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+    }
+    .klc-topbar .logo { font-weight: 700; font-size: 14px; color: var(--accent); }
+    .klc-topbar .spacer { flex: 1; }
+
+    .klc-left {
+      grid-area: left;
+      background: var(--panel);
+      margin-top: 5px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 0;
+      gap: 6px;
+    }
+
+    .klc-chart {
+      grid-area: chart;
+      position: relative;
+      overflow: hidden;
+      background: var(--bg);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 5px;
+      margin: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .klc-bottom {
+      grid-area: bottom;
+      background: var(--panel);
+      margin: 0 5px 0 5px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* Right cell: row flex — icons + watchlist */
+    .klc-right {
+      grid-area: right;
+      margin-top: 5px;
+      display: flex;
+      flex-direction: row;
+      overflow: hidden;
+    }
+
+    .klc-right-icons {
+      width: 52px;
+      flex-shrink: 0;
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 0;
+      gap: 6px;
+    }
+
+    .klc-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      cursor: pointer;
+      color: var(--muted);
+      transition: background .15s, color .15s;
+    }
+    .klc-icon:hover { background: rgba(255,255,255,.06); color: var(--text); }
+    .klc-icon.active { color: var(--accent); }
+
+    /* Watchlist panel */
+    .klc-watchlist {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      background: var(--panel);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .klc-watchlist.open {
+      display: flex;
+      border-right: 2px solid #181818;
+      border-radius: 5px 0 0 0;
+    }
+
+    .klc-watchlist-resize {
+      position: absolute;
+      left: -3px;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      cursor: col-resize;
+      z-index: 10;
+    }
+    .klc-watchlist-resize::after {
+      content: '';
+      position: absolute;
+      left: 2px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: transparent;
+      transition: background .15s;
+    }
+    .klc-watchlist-resize:hover::after,
+    .klc-watchlist-resize:active::after {
+      background: rgba(255,255,255,.15);
+    }
+
+    .klc-watchlist.open {
+      display: flex;
+      border-right: 2px solid #181818;
+      border-radius: 5px 0 0 0;
+    }
+
+    .klc-watchlist-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .klc-watchlist-header .close {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .klc-watchlist-header .close:hover { background: rgba(255,255,255,.06); color: var(--text); }
+
+    .klc-watchlist-search {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .klc-watchlist-search input {
+      width: 100%;
+      height: 32px;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 12px;
+      font-family: var(--font);
+      outline: none;
+    }
+    .klc-watchlist-search input::placeholder { color: var(--muted); }
+    .klc-watchlist-search input:focus { border-color: var(--accent); }
+
+    .klc-watchlist-items {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: #181818 transparent;
+    }
+
+    .klc-watchlist-items::-webkit-scrollbar { width: 3px; }
+    .klc-watchlist-items::-webkit-scrollbar-track { background: transparent; }
+    .klc-watchlist-items::-webkit-scrollbar-thumb { background: #181818; border-radius: 2px; }
+
+    .klc-watchlist-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 16px;
+      cursor: pointer;
+      gap: 8px;
+    }
+    .klc-watchlist-item:hover { background: rgba(255,255,255,.04); }
+    .klc-watchlist-item.active { background: rgba(41,98,255,.1); }
+
+    .klc-watchlist-item .symbol {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .klc-watchlist-item .price {
+      text-align: right;
+      font-size: 12px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: var(--muted);
+    }
+
+    .klc-watchlist-item .change {
+      width: 52px;
+      text-align: right;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .klc-watchlist-item .change.up { color: var(--green); }
+    .klc-watchlist-item .change.down { color: var(--red); }
+
+    .klc-watchlist-item .remove {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--muted);
+      opacity: 0;
+      cursor: pointer;
+    }
+    .klc-watchlist-item:hover .remove { opacity: 1; }
+    .klc-watchlist-item .remove:hover { background: rgba(255,80,80,.2); color: var(--red); }
+
+  </style>
+</head>
+<body>
+  <div class="klc-layout" id="layout">
+    <div class="klc-topbar">
+      <span class="logo">KLC</span>
+      <span class="spacer"></span>
+    </div>
+
+    <div class="klc-left">
+      <div class="klc-icon active">⤴</div>
+      <div class="klc-icon">╱</div>
+      <div class="klc-icon">φ</div>
+    </div>
+
+    <div class="klc-chart">Chart Area</div>
+
+    <div class="klc-bottom">Status bar</div>
+
+    <!-- Right cell: watchlist + icons (icons always at right edge) -->
+    <div class="klc-right">
+      <div class="klc-watchlist" id="watchlist">
+        <div class="klc-watchlist-resize" id="resizeHandle"></div>
+        <div class="klc-watchlist-header">
+          <span>Watchlist</span>
+          <div class="close" id="closeWatchlist">✕</div>
+        </div>
+
+        <div class="klc-watchlist-search">
+          <input type="text" placeholder="Search symbol..." />
+        </div>
+
+        <div class="klc-watchlist-items" id="watchlistItems"></div>
+
+      </div>
+
+      <div class="klc-right-icons">
+        <div class="klc-icon active" id="toggleWatchlist">📋</div>
+        <div class="klc-icon">🔔</div>
+        <div class="klc-icon">📊</div>
+        <div style="flex:1;"></div>
+        <div class="klc-icon">⚙</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const symbols = [
+      'BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'DOGEUSDT',
+      'ADAUSDT', 'XRPUSDT', 'AVAXUSDT', 'DOTUSDT', 'LINKUSDT',
+      'MATICUSDT', 'ATOMUSDT', 'UNIUSDT', 'LTCUSDT', 'BCHUSDT',
+      'FILUSDT', 'APTUSDT', 'ARBUSDT', 'OPUSDT', 'SUIUSDT',
+      'INJUSDT', 'RUNEUSDT', 'AAVEUSDT', 'CRVUSDT', 'MKRUSDT',
+      'YFIUSDT', 'SUSHIUSDT', 'COMPUSDT', 'SNXUSDT', 'BALUSDT',
+      'ZECUSDT', 'XMRUSDT', 'DASHUSDT', 'ETCUSDT', 'EOSUSDT',
+      'TRXUSDT', 'XLMUSDT', 'ALGOUSDT', 'NEARUSDT', 'FLOWUSDT',
+      'EGLDUSDT', 'FTMUSDT', 'MANAUSDT', 'SANDUSDT', 'AXSUSDT',
+      'CHZUSDT', 'GALAUSDT', 'IMXUSDT', 'ENSUSDT', 'PEPEUSDT'
+    ].map(sym => ({
+      sym,
+      price: +(Math.random() * 90000 + 1000).toFixed(2),
+      change: parseFloat((Math.random() * 8 - 4).toFixed(2))
+    }))
+
+    const container = document.getElementById('watchlistItems')
+    function render () {
+      container.innerHTML = symbols.map(s => {
+        const cls = s.change >= 0 ? 'up' : 'down'
+        const sign = s.change >= 0 ? '+' : ''
+        return `
+          <div class="klc-watchlist-item">
+            <span class="symbol">${s.sym}</span>
+            <span class="price">${s.price.toFixed(2)}</span>
+            <span class="change ${cls}">${sign}${s.change.toFixed(2)}%</span>
+            <span class="remove" data-sym="${s.sym}">✕</span>
+          </div>
+        `
+      }).join('')
+
+      container.querySelectorAll('.remove').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation()
+          const sym = btn.dataset.sym
+          const idx = symbols.findIndex(s => s.sym === sym)
+          if (idx !== -1) symbols.splice(idx, 1)
+          render()
+        })
+      })
+
+      container.querySelectorAll('.klc-watchlist-item').forEach(el => {
+        el.addEventListener('click', () => {
+          container.querySelectorAll('.klc-watchlist-item').forEach(i => i.classList.remove('active'))
+          el.classList.add('active')
+        })
+      })
+    }
+    render()
+
+    const layout = document.getElementById('layout')
+    const watchlist = document.getElementById('watchlist')
+    const toggleBtn = document.getElementById('toggleWatchlist')
+    const closeBtn = document.getElementById('closeWatchlist')
+
+    let watchlistWidth = 248
+
+    toggleBtn.addEventListener('click', () => {
+      const opening = !watchlist.classList.contains('open')
+      if (opening) {
+        layout.style.gridTemplateColumns = `52px 1fr ${52 + watchlistWidth}px`
+        layout.classList.add('watchlist-open')
+        watchlist.classList.add('open')
+      } else {
+        layout.classList.remove('watchlist-open')
+        watchlist.classList.remove('open')
+        layout.style.gridTemplateColumns = ''
+      }
+    })
+
+    closeBtn.addEventListener('click', () => {
+      layout.classList.remove('watchlist-open')
+      watchlist.classList.remove('open')
+      layout.style.gridTemplateColumns = ''
+    })
+
+    // Resize
+    const handle = document.getElementById('resizeHandle')
+    let isResizing = false
+    handle.addEventListener('mousedown', e => {
+      isResizing = true
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+      e.preventDefault()
+    })
+
+    document.addEventListener('mousemove', e => {
+      if (!isResizing) return
+      const rect = layout.getBoundingClientRect()
+      const rightEdge = rect.right
+      watchlistWidth = Math.min(Math.max(rightEdge - e.clientX - 52, 150), 500)
+      layout.style.gridTemplateColumns = `52px 1fr ${52 + watchlistWidth}px`
+    })
+
+    document.addEventListener('mouseup', () => {
+      if (isResizing) {
+        isResizing = false
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+      }
+    })
+  </script>
+</body>
+</html>

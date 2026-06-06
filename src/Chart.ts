@@ -63,6 +63,8 @@ import { getIndicatorClass } from './extension/indicator/index'
 import Event from './Event'
 import type { XAxisOverride } from './component/XAxis'
 
+import { LayoutShell, ResponsiveManager, WatchlistWidget, DrawingToolsWidget, FloatingToolbar } from './ui'
+
 export interface CreateIndicatorOptions {
   isStack?: boolean
   pane?: PaneOptions
@@ -138,6 +140,12 @@ export default class ChartImp implements Chart {
 
   private _resizeObserver: Nullable<ResizeObserver> = null
 
+  private _layoutShell: Nullable<LayoutShell> = null
+  private _responsiveManager: Nullable<ResponsiveManager> = null
+  private _watchlistWidget: Nullable<WatchlistWidget> = null
+  private _drawingToolsWidget: Nullable<DrawingToolsWidget> = null
+  private _floatingToolbar: Nullable<FloatingToolbar> = null
+
   private _resizeRequestAnimationId = DEFAULT_REQUEST_ID
 
   private readonly _scheduleResize = (): void => {
@@ -157,9 +165,9 @@ export default class ChartImp implements Chart {
   private readonly _cacheYAxisWidth = { left: 0, right: 0 }
 
   constructor (container: HTMLElement, options?: Options) {
-    this._initContainer(container)
-    this._chartEvent = new Event(this._chartContainer, this)
     this._chartStore = new ChartStore(this, options)
+    this._initContainer(container, options?.features?.ui === true)
+    this._chartEvent = new Event(this._chartContainer, this)
     const defaultPaneOptions = this._getLayoutDefaultPaneOptions(this._chartStore.getLayoutBasicParams())
     const defaultYAxis = this._getLayoutDefaultYAxis(this._chartStore.getLayoutBasicParams())
     this._candlePane = this._createPane<CandlePane>(CandlePane, { ...defaultPaneOptions, id: PaneIdConstants.CANDLE })
@@ -170,7 +178,7 @@ export default class ChartImp implements Chart {
     this._initResizeListener()
   }
 
-  private _initContainer (container: HTMLElement): void {
+  private _initContainer (container: HTMLElement, enableUI: boolean): void {
     this._container = container
     this._chartContainer = createDom('div', {
       position: 'relative',
@@ -190,7 +198,48 @@ export default class ChartImp implements Chart {
       webkitTapHighlightColor: 'transparent'
     })
     this._chartContainer.tabIndex = 1
-    container.appendChild(this._chartContainer)
+    if (enableUI) {
+      this._layoutShell = new LayoutShell(container)
+      this._responsiveManager = new ResponsiveManager()
+      this._layoutShell.getSlot('chart').appendChild(this._chartContainer)
+      this._responsiveManager.subscribe(bp => {
+        this._layoutShell?.element.setAttribute('data-breakpoint', bp)
+      })
+
+      // Watchlist
+      this._watchlistWidget = new WatchlistWidget(
+        this._layoutShell,
+        id => { this._chartStore.executeAction('onWidgetToggle', id) }
+      )
+      this._watchlistWidget.mount()
+      const iconsContainer = this._layoutShell.element.querySelector('.klc-right-icons')
+      if (iconsContainer !== null) {
+        this._watchlistWidget.mountToggle(iconsContainer as HTMLElement)
+      }
+
+      // Drawing tools
+      let lastOverlayId: Nullable<string> = null
+      this._floatingToolbar = new FloatingToolbar(
+        this._layoutShell,
+        (opts) => {
+          if (lastOverlayId !== null) {
+            this.overrideOverlay({ id: lastOverlayId, styles: { line: { color: opts.color, size: opts.size, style: opts.lineStyle } } })
+          }
+        }
+      )
+      this._floatingToolbar.mount()
+      this._drawingToolsWidget = new DrawingToolsWidget(
+        this._layoutShell,
+        (create: string | OverlayCreate) => {
+          const result = this.createOverlay(create)
+          if (typeof result === 'string') lastOverlayId = result
+        },
+        this._floatingToolbar
+      )
+      this._drawingToolsWidget.mount()
+    } else {
+      container.appendChild(this._chartContainer)
+    }
     this._cacheChartBounding()
   }
 
@@ -1373,6 +1422,21 @@ export default class ChartImp implements Chart {
     this._drawPanes = []
     this._separatorPanes.clear()
     this._chartStore.destroy()
-    this._container.removeChild(this._chartContainer)
+    this._watchlistWidget?.dispose()
+    this._watchlistWidget = null
+    this._drawingToolsWidget = null
+    this._floatingToolbar?.dispose()
+    this._floatingToolbar = null
+    if (isValid(this._responsiveManager)) {
+      this._responsiveManager.dispose()
+      this._responsiveManager = null
+    }
+    if (isValid(this._layoutShell)) {
+      this._chartContainer.parentElement?.removeChild(this._chartContainer)
+      this._layoutShell.destroy()
+      this._layoutShell = null
+    } else {
+      this._container.removeChild(this._chartContainer)
+    }
   }
 }

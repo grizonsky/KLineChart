@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KLC Layout Shell Prototype</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --klc-bg: #131722;
+      --klc-text: #d1d4dc;
+      --klc-toolbar-bg: #1e222d;
+      --klc-toolbar-hover: #2a2e39;
+      --klc-border: #2a2e39;
+      --klc-sidebar-w: 48px;
+      --klc-topbar-h: 44px;
+      --klc-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --klc-font-mono: 'SF Mono', 'Fira Code', monospace;
+    }
+
+    body {
+      font-family: var(--klc-font);
+      color: var(--klc-text);
+      background: #0d111c;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* --- Breakpoint controls --- */
+    .bp-controls {
+      display: flex;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #1e222d;
+      border-bottom: 1px solid var(--klc-border);
+      align-items: center;
+    }
+    .bp-controls label {
+      font-size: 12px;
+      color: #76808f;
+    }
+    .bp-controls button {
+      padding: 4px 12px;
+      border: 1px solid var(--klc-border);
+      background: var(--klc-toolbar-bg);
+      color: var(--klc-text);
+      cursor: pointer;
+      font-size: 12px;
+      border-radius: 4px;
+    }
+    .bp-controls button:hover { background: var(--klc-toolbar-hover); }
+    .bp-controls button.active { border-color: #1677ff; color: #1677ff; }
+
+    .bp-indicator {
+      margin-left: auto;
+      font-size: 12px;
+      color: #76808f;
+      font-family: var(--klc-font-mono);
+    }
+
+    /* --- Layout Shell --- */
+    .klc-layout {
+      display: grid;
+      grid-template-rows: var(--klc-topbar-h) 1fr 0px;
+      width: 100%;
+      height: calc(100vh - 37px);  /* minus bp-controls height */
+      overflow: hidden;
+      font-family: var(--klc-font);
+      color: var(--klc-text);
+      background: var(--klc-bg);
+      transition: grid-template-columns 0.2s;
+    }
+
+    .klc-main {
+      display: grid;
+      grid-template-columns: var(--klc-sidebar-w) 1fr var(--klc-sidebar-w);
+      overflow: hidden;
+    }
+
+    /* --- Top Toolbar --- */
+    .klc-top-toolbar {
+      grid-row: 1;
+      background: var(--klc-toolbar-bg);
+      border-bottom: 1px solid var(--klc-border);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 8px;
+    }
+    .klc-top-toolbar .logo {
+      font-weight: 700;
+      font-size: 14px;
+      color: #1677ff;
+      margin-right: 12px;
+    }
+    .klc-top-toolbar .spacer { flex: 1; }
+    .klc-top-toolbar .chip {
+      padding: 4px 10px;
+      background: #2a2e39;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #76808f;
+    }
+    .klc-top-toolbar .chip.accent { color: #d1d4dc; }
+
+    /* --- Sidebars --- */
+    .klc-left-sidebar {
+      background: var(--klc-toolbar-bg);
+      border-right: 1px solid var(--klc-border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 0;
+      gap: 4px;
+    }
+    .klc-right-sidebar {
+      background: var(--klc-toolbar-bg);
+      border-left: 1px solid var(--klc-border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 0;
+      gap: 4px;
+    }
+
+    .sidebar-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      cursor: pointer;
+      color: #76808f;
+      transition: background 0.15s, color 0.15s;
+    }
+    .sidebar-icon:hover { background: var(--klc-toolbar-hover); color: var(--klc-text); }
+    .sidebar-icon.active { color: #1677ff; }
+
+    /* --- Chart Area --- */
+    .klc-chart-area {
+      position: relative;
+      overflow: hidden;
+      background: var(--klc-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .klc-chart-area .placeholder {
+      text-align: center;
+      color: #2a2e39;
+    }
+    .klc-chart-area .placeholder .grid-demo {
+      width: 360px;
+      height: 240px;
+      margin: 0 auto 16px;
+      background:
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 29px,
+          #2a2e39 29px,
+          #2a2e39 30px
+        ),
+        repeating-linear-gradient(
+          90deg,
+          transparent,
+          transparent 59px,
+          #2a2e39 59px,
+          #2a2e39 60px
+        ),
+        linear-gradient(to bottom, #131722, #1a1f2e);
+      border: 1px solid #2a2e39;
+      border-radius: 4px;
+    }
+    .klc-chart-area .placeholder p {
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    /* --- Tablet --- */
+    .klc-layout.tablet .klc-main {
+      grid-template-columns: var(--klc-sidebar-w) 1fr 0px;
+    }
+    .klc-layout.tablet .klc-right-sidebar {
+      display: none;
+    }
+
+    /* --- Mobile --- */
+    .klc-layout.mobile .klc-main {
+      grid-template-columns: 0px 1fr 0px;
+    }
+    .klc-layout.mobile .klc-left-sidebar,
+    .klc-layout.mobile .klc-right-sidebar {
+      display: none;
+    }
+
+    /* --- Transitions for responsive --- */
+    .klc-main > * {
+      transition: all 0.25s ease;
+    }
+  </style>
+</head>
+<body>
+  <!-- Breakpoint switcher -->
+  <div class="bp-controls">
+    <label>Breakpoint:</label>
+    <button data-bp="desktop" class="active">Desktop</button>
+    <button data-bp="tablet">Tablet</button>
+    <button data-bp="mobile">Mobile</button>
+    <span class="bp-indicator" id="bpLabel">>1024px</span>
+  </div>
+
+  <!-- Layout Shell -->
+  <div class="klc-layout" id="layout">
+    <!-- Top Toolbar -->
+    <div class="klc-top-toolbar">
+      <span class="logo">KLC</span>
+      <span class="chip accent">BTC/USDT</span>
+      <span class="chip">1d</span>
+      <span class="spacer"></span>
+      <span class="chip" style="font-size:11px;">indicators</span>
+      <span class="chip" style="font-size:11px;">settings</span>
+    </div>
+
+    <!-- Main area -->
+    <div class="klc-main">
+      <!-- Left Sidebar -->
+      <div class="klc-left-sidebar">
+        <div class="sidebar-icon active" title="Cursor">⤴</div>
+        <div class="sidebar-icon" title="Trend Line">╱</div>
+        <div class="sidebar-icon" title="Fibonacci">φ</div>
+        <div class="sidebar-icon" title="Rectangle">▭</div>
+        <div class="sidebar-icon" title="Text">T</div>
+        <div style="flex:1;"></div>
+        <div class="sidebar-icon" title="Objects">☰</div>
+      </div>
+
+      <!-- Chart Area -->
+      <div class="klc-chart-area">
+        <div class="placeholder">
+          <div class="grid-demo"></div>
+          <p>Chart Canvas Area</p>
+          <p style="font-size:11px; color:#3a3e49;">klc-chart-area</p>
+        </div>
+      </div>
+
+      <!-- Right Sidebar -->
+      <div class="klc-right-sidebar">
+        <div class="sidebar-icon active" title="Watchlist">📋</div>
+        <div class="sidebar-icon" title="Alerts">🔔</div>
+        <div class="sidebar-icon" title="Data Window">📊</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const layout = document.getElementById('layout')
+    const label = document.getElementById('bpLabel')
+    const btns = document.querySelectorAll('[data-bp]')
+
+    function setBreakpoint(bp) {
+      layout.className = 'klc-layout' + (bp === 'desktop' ? '' : ' ' + bp)
+      btns.forEach(b => b.classList.toggle('active', b.dataset.bp === bp))
+      const labels = { desktop: '>1024px', tablet: '768–1024px', mobile: '<768px' }
+      label.textContent = labels[bp]
+    }
+
+    btns.forEach(btn => {
+      btn.addEventListener('click', () => setBreakpoint(btn.dataset.bp))
+    })
+
+    // Auto-detect on resize
+    function detectBP() {
+      const w = window.innerWidth
+      if (w >= 1024) setBreakpoint('desktop')
+      else if (w >= 768) setBreakpoint('tablet')
+      else setBreakpoint('mobile')
+    }
+    window.addEventListener('resize', detectBP)
+  </script>
+</body>
+</html>

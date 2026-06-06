@@ -18,10 +18,10 @@ import type { Styles } from '../../common/Styles'
 const light: DeepPartial<Styles> = {
   grid: {
     horizontal: {
-      color: '#EDEDED'
+      color: '#181818'
     },
     vertical: {
-      color: '#EDEDED'
+      color: '#181818'
     }
   },
   candle: {
@@ -58,46 +58,46 @@ const light: DeepPartial<Styles> = {
   },
   xAxis: {
     axisLine: {
-      color: '#DDDDDD'
+      color: '#4a4a4a'
     },
     tickText: {
       color: '#76808F'
     },
     tickLine: {
-      color: '#DDDDDD'
+      color: '#4a4a4a'
     }
   },
   yAxis: {
     axisLine: {
-      color: '#DDDDDD'
+      color: '#4a4a4a'
     },
     tickText: {
       color: '#76808F'
     },
     tickLine: {
-      color: '#DDDDDD'
+      color: '#4a4a4a'
     }
   },
   separator: {
-    color: '#DDDDDD'
+    color: '#4a4a4a'
   },
   crosshair: {
     horizontal: {
       line: {
-        color: '#76808F'
+        color: '#4a4a4a'
       },
       text: {
-        borderColor: '#686D76',
-        backgroundColor: '#686D76'
+        borderColor: '#4a4a4a',
+        backgroundColor: '#4a4a4a'
       }
     },
     vertical: {
       line: {
-        color: '#76808F'
+        color: '#4a4a4a'
       },
       text: {
-        borderColor: '#686D76',
-        backgroundColor: '#686D76'
+        borderColor: '#4a4a4a',
+        backgroundColor: '#4a4a4a'
       }
     }
   }

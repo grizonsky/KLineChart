@@ -51,6 +51,10 @@ import type { OverlayMode, OverlayDrawingMode } from './component/Overlay'
 import type { FormatDateType, Options, ZoomAnchor } from './Options'
 import ChartImp, { type Chart, type DomPosition } from './Chart'
 
+import { ChartCollection } from './chart-collection'
+import type { MultiChartOptions } from './chart-collection'
+import { LayoutShell, ResponsiveManager, WatchlistWidget, DrawingToolsWidget, FloatingToolbar } from './ui'
+
 import { checkCoordinateOnArc } from './extension/figure/arc'
 import { checkCoordinateOnCircle } from './extension/figure/circle'
 import {
@@ -89,7 +93,7 @@ function version (): string {
  * @param options
  * @returns {Chart}
  */
-function init (ds: HTMLElement | string, options?: Options): Nullable<Chart> {
+function init (ds: HTMLElement | string, options?: Options | Record<string, unknown>): Nullable<Chart | object> {
   logTag()
   let dom: Nullable<HTMLElement> = null
   if (isString(ds)) {
@@ -101,13 +105,56 @@ function init (ds: HTMLElement | string, options?: Options): Nullable<Chart> {
     logError('', '', 'The chart cannot be initialized correctly. Please check the parameters. The chart container cannot be null and child elements need to be added!!!')
     return null
   }
+
+  // Multi-chart mode
+  if (isObject(options)) {
+    const mco = (options as Record<string, unknown>).multiChart
+    if (mco !== undefined && typeof mco === 'object' && mco !== null) {
+      const panes = (mco as Record<string, unknown>).panes
+      if (Array.isArray(panes) && panes.length > 0) {
+        const chartOpts = options as Options | undefined
+        const enableUI = chartOpts?.features?.ui === true
+        if (enableUI) {
+          const shell = new LayoutShell(dom)
+          const rm = new ResponsiveManager()
+          rm.subscribe(bp => { shell.element.setAttribute('data-breakpoint', bp) })
+
+          // Watchlist
+          const wl = new WatchlistWidget(shell, function () { void 0 })
+          wl.mount()
+          const iconsContainer = shell.element.querySelector('.klc-right-icons')
+          if (iconsContainer !== null) wl.mountToggle(iconsContainer as HTMLElement)
+
+          // Drawing tools (no overlay wiring for now)
+          const ft = new FloatingToolbar(shell, function () { void 0 })
+          ft.mount()
+          const dt = new DrawingToolsWidget(shell, function () { void 0 }, ft)
+          dt.mount()
+
+          const chartSlot = shell.getSlot('chart')
+          const collection = new ChartCollection(chartSlot, mco as MultiChartOptions, () => {
+            rm.dispose()
+            wl.dispose()
+            ft.dispose()
+            shell.destroy()
+          })
+          return collection
+        }
+        const collection = new ChartCollection(dom, mco as MultiChartOptions)
+        return collection
+      }
+    }
+  }
+
+  // Single chart (existing behavior)
+  const chartOpts = options as Options | undefined
   let chart = charts.get(dom.id)
   if (isValid(chart)) {
     logWarn('', '', 'The chart has been initialized on the dom！！！')
     return chart
   }
   const id = `k_line_chart_${chartBaseId++}`
-  chart = new ChartImp(dom, options)
+  chart = new ChartImp(dom, chartOpts)
   chart.id = id
   dom.setAttribute('k-line-chart-id', id)
   charts.set(id, chart)

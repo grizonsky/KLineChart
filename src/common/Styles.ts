@@ -367,15 +367,15 @@ function getDefaultGridStyle (): GridStyle {
     horizontal: {
       show: true,
       size: 1,
-      color: '#EDEDED',
-      style: 'dashed',
+      color: '#181818',
+      style: 'solid',
       dashedValue: [2, 2]
     },
     vertical: {
       show: true,
       size: 1,
-      color: '#EDEDED',
-      style: 'dashed',
+      color: '#181818',
+      style: 'solid',
       dashedValue: [2, 2]
     }
   }
@@ -641,7 +641,7 @@ function getDefaultAxisStyle (): AxisStyle {
     size: 'auto',
     axisLine: {
       show: true,
-      color: '#DDDDDD',
+      color: '#4a4a4a',
       size: 1
     },
     tickText: {
@@ -657,7 +657,7 @@ function getDefaultAxisStyle (): AxisStyle {
       show: true,
       size: 1,
       length: 3,
-      color: '#DDDDDD'
+      color: '#4a4a4a'
     }
   }
 }
@@ -670,9 +670,9 @@ function getDefaultCrosshairStyle (): CrosshairStyle {
       line: {
         show: true,
         style: 'dashed',
-        dashedValue: [4, 2],
+        dashedValue: [4, 5],
         size: 1,
-        color: Color.GREY
+        color: '#4a4a4a'
       },
       text: {
         show: true,
@@ -699,9 +699,9 @@ function getDefaultCrosshairStyle (): CrosshairStyle {
       line: {
         show: true,
         style: 'dashed',
-        dashedValue: [4, 2],
+        dashedValue: [4, 5],
         size: 1,
-        color: Color.GREY
+        color: '#4a4a4a'
       },
       text: {
         show: true,
@@ -803,7 +803,7 @@ function getDefaultOverlayStyle (): OverlayStyle {
 function getDefaultSeparatorStyle (): SeparatorStyle {
   return {
     size: 1,
-    color: '#DDDDDD',
+    color: '#4a4a4a',
     fill: true,
     activeBackgroundColor: hexToRgb(Color.BLUE, 0.08)
   }

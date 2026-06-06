@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KLC TradingView Style Layout</title>
+
+<style>
+:root{
+    --underlay:#1c1c1c;
+    --bg:#0f0f0f;
+    --panel:#0f0f0f;
+    --border:#2a2e39;
+    --text:#d1d4dc;
+    --accent:#2962ff;
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+html,
+body{
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:var(--underlay);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+
+.klc-layout{
+    height:100vh;
+    display:grid;
+    background:var(--underlay);
+    grid-template-columns:52px 1fr 52px;
+    grid-template-rows:48px 1fr 40px;
+    grid-template-areas:
+        "top   top    top"
+        "left  chart  right"
+        "left  bottom right";
+}
+
+/* ==========================
+   TOP BAR
+========================== */
+
+.klc-topbar{
+    grid-area:top;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:0 12px;
+    background:var(--panel);
+    border-bottom:1px solid var(--border);
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+}
+
+.klc-topbar::-webkit-scrollbar{display:none;}
+
+.klc-logo{
+    font-weight:700;
+    font-size:15px;
+    margin-right:8px;
+}
+
+.klc-chip{
+    height:30px;
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    padding:0 12px;
+    border:1px solid var(--border);
+    border-radius:6px;
+    font-size:13px;
+    cursor:pointer;
+}
+
+.klc-chip:hover{
+    border-color:var(--accent);
+}
+
+.klc-spacer{
+    flex:1;
+}
+
+/* ==========================
+   LEFT TOOLS
+========================== */
+
+.klc-tools{
+    grid-area:left;
+    background:var(--panel);
+    margin-top:5px;
+	border-radius: 0 5px 0 0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:8px 0;
+    gap:6px;
+}
+
+.klc-tool{
+    width:36px;
+    height:36px;
+    border-radius:8px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    color:var(--text);
+    font-size:14px;
+}
+
+.klc-tool:hover{
+    background:rgba(255,255,255,.06);
+}
+
+.klc-tool.active{
+    background:rgba(41,98,255,.15);
+    color:var(--accent);
+}
+
+.klc-tool-spacer{
+    flex:1;
+}
+
+/* ==========================
+   CHART AREA
+========================== */
+
+.klc-chart{
+    grid-area:chart;
+    position:relative;
+    overflow:hidden;
+    background:var(--bg);
+    border:1px solid rgba(255,255,255,.15);
+	border-radius: 5px;
+    margin:5px;
+}
+
+/* ==========================
+   RIGHT PANEL
+========================== */
+
+.klc-right{
+    grid-area:right;
+    background:var(--panel);
+    margin-top:5px;
+	border-radius: 5px 0 0 0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:8px 0;
+    gap:6px;
+}
+
+/* ==========================
+   BOTTOM PANEL
+========================== */
+
+.klc-bottom{
+    grid-area:bottom;
+    background:var(--panel);
+    margin:0 5px 0 5px;
+    display:flex;
+    align-items:center;
+}
+
+.klc-tab{
+    height:100%;
+    display:flex;
+    align-items:center;
+    padding:0 14px;
+    font-size:12px;
+    cursor:pointer;
+}
+
+
+/* ==========================
+   RESPONSIVE
+========================== */
+
+@media (max-width:568px){
+
+    .klc-layout{
+        grid-template-columns:52px 1fr;
+        grid-template-rows:48px 1fr 40px;
+        grid-template-areas:
+            "top   top"
+            "left  chart"
+            "left  bottom";
+    }
+
+    .klc-right{
+        display:none;
+    }
+}
+
+@media (max-width:368px){
+
+    .klc-layout{
+        grid-template-columns:1fr;
+        grid-template-rows:48px 1fr 40px;
+        grid-template-areas:
+            "top"
+            "chart"
+            "bottom";
+    }
+
+    .klc-tools,
+    .klc-right{
+        display:none;
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="klc-layout">
+
+    <!-- TOP -->
+
+    <div class="klc-topbar">
+
+        <div class="klc-logo">KLC</div>
+
+        <div class="klc-chip">BTCUSDT</div>
+        <div class="klc-chip">1D</div>
+        <div class="klc-chip">Indicators</div>
+        <div class="klc-chip">Alert</div>
+        <div class="klc-chip">Replay</div>
+
+        <div class="klc-spacer"></div>
+
+        <div class="klc-chip">Save</div>
+        <div class="klc-chip">Publish</div>
+
+    </div>
+
+    <!-- LEFT -->
+
+    <div class="klc-tools">
+
+        <div class="klc-tool active">⌖</div>
+        <div class="klc-tool">╱</div>
+        <div class="klc-tool">⌗</div>
+        <div class="klc-tool">▭</div>
+        <div class="klc-tool">✎</div>
+        <div class="klc-tool">T</div>
+        <div class="klc-tool">∿</div>
+
+        <div class="klc-tool-spacer"></div>
+
+        <div class="klc-tool">☰</div>
+
+    </div>
+
+    <!-- CHART -->
+
+    <div class="klc-chart"></div>
+
+    <!-- BOTTOM -->
+
+    <div class="klc-bottom">
+
+        <div class="klc-tab active">Pine Editor</div>
+        <div class="klc-tab">Strategy Tester</div>
+        <div class="klc-tab">Replay Trading</div>
+        <div class="klc-tab">Trading Panel</div>
+
+    </div>
+
+    <!-- RIGHT -->
+
+    <div class="klc-right">
+
+        <div class="klc-tool active">📋</div>
+        <div class="klc-tool">🔔</div>
+        <div class="klc-tool">📊</div>
+
+        <div class="klc-tool-spacer"></div>
+
+        <div class="klc-tool">⚙</div>
+
+    </div>
+
+</div>
+
+</body>
+</html>
