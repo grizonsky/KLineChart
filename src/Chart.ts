@@ -150,6 +150,7 @@ export default class ChartImp implements Chart {
   private _watchlistWidget: Nullable<WatchlistWidget> = null
   private _drawingToolsWidget: Nullable<DrawingToolsWidget> = null
   private _floatingToolbar: Nullable<FloatingToolbar> = null
+  private _selectedOverlayId: Nullable<string> = null
 
   private _resizeRequestAnimationId = DEFAULT_REQUEST_ID
 
@@ -223,12 +224,11 @@ export default class ChartImp implements Chart {
       }
 
       // Drawing tools
-      let lastOverlayId: Nullable<string> = null
       this._floatingToolbar = new FloatingToolbar(
         this._layoutShell,
         (opts) => {
-          if (lastOverlayId !== null) {
-            this.overrideOverlay({ id: lastOverlayId, styles: { line: { color: opts.color, size: opts.size, style: opts.lineStyle } } })
+          if (this._selectedOverlayId !== null) {
+            this.overrideOverlay({ id: this._selectedOverlayId, styles: { line: { color: opts.color, size: opts.size, style: opts.lineStyle } } })
           }
         }
       )
@@ -237,7 +237,7 @@ export default class ChartImp implements Chart {
         this._layoutShell,
         (create: string | OverlayCreate) => {
           const result = this.createOverlay(create)
-          if (typeof result === 'string') lastOverlayId = result
+          if (typeof result === 'string') this._selectedOverlayId = result
         },
         this._floatingToolbar
       )
@@ -1058,6 +1058,18 @@ export default class ChartImp implements Chart {
         appointPaneFlags.push(false)
       } else {
         appointPaneFlags.push(true)
+      }
+      const origOnSelected = overlay.onSelected
+      overlay.onSelected = (params) => {
+        this._selectedOverlayId = params.overlay.id
+        this._floatingToolbar?.show()
+        origOnSelected?.(params)
+      }
+      const origOnDeselected = overlay.onDeselected
+      overlay.onDeselected = (params) => {
+        this._selectedOverlayId = null
+        this._floatingToolbar?.hide()
+        origOnDeselected?.(params)
       }
       overlays.push(overlay)
     }
