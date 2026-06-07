@@ -15,6 +15,7 @@
 import { getLinearYFromCoordinates } from '../figure/line'
 
 import type { OverlayTemplate } from '../../component/Overlay'
+import { createLinePropertyGroup, createPointPropertyGroup } from '../../component/OverlayProperty'
 
 const straightLine: OverlayTemplate = {
   name: 'straightLine',
@@ -22,6 +23,10 @@ const straightLine: OverlayTemplate = {
   needDefaultPointFigure: true,
   needDefaultXAxisFigure: true,
   needDefaultYAxisFigure: true,
+  properties: {
+    line: createLinePropertyGroup(),
+    point: createPointPropertyGroup()
+  },
   createPointFigures: ({ coordinates, bounding }) => {
     if (coordinates.length === 2) {
       if (coordinates[0].x === coordinates[1].x) {

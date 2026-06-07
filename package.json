@@ -65,7 +65,9 @@
     "docs:build": "pnpm build-umd:prod && pnpm -F=docs build",
     "docs:preview": "pnpm -F=docs preview",
     "docs:deploy": "pnpm docs:build && gh-pages -d website",
-    "debug": "vite --host 0.0.0.0 debug"
+    "debug": "vite --host 0.0.0.0 debug",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "packageManager": "pnpm@10.4.1",
   "devDependencies": {
@@ -98,6 +100,7 @@
     "eslint-plugin-promise": "^7.2.1",
     "fs-extra": "^11.2.0",
     "gh-pages": "^6.1.1",
+    "happy-dom": "^20.10.1",
     "husky": "^8.0.3",
     "resize-observer-polyfill": "^1.5.1",
     "rollup": "^4.60.4",
@@ -105,7 +108,10 @@
     "shiki": "^2.4.2",
     "tslib": "^2.8.1",
     "typescript": "^5.8.3",
-    "vitepress": "2.0.0-alpha.17"
+    "typescript-language-server": "^5.3.0",
+    "vitepress": "2.0.0-alpha.17",
+    "vitest": "^4.1.8",
+    "vscode-langservers-extracted": "^4.10.0"
   },
   "pnpm": {
     "overrides": {

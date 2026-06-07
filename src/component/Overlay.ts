@@ -21,6 +21,8 @@ import type Bounding from '../common/Bounding'
 import type { OverlayStyle } from '../common/Styles'
 import type { MouseTouchEvent } from '../common/EventHandler'
 import { clone, isArray, isBoolean, isNumber, isString, isValid, merge } from '../common/utils/typeChecks'
+import type { PropertyGroup, AnyOverlayProperty } from './OverlayProperty'
+import type { OverlayDTO } from './OverlayDTO'
 
 import type { XAxis } from './XAxis'
 import type { YAxis } from './YAxis'
@@ -182,6 +184,11 @@ export interface Overlay<E = unknown> extends OverlayEventCollection<E> {
   points: Array<Partial<Point>>
 
   /**
+   * Property groups for dynamic UI (line, point, fill, etc.)
+   */
+  properties: Record<string, PropertyGroup<Record<string, AnyOverlayProperty>>>
+
+  /**
    * Extended Data
    */
   extendData: E
@@ -215,6 +222,11 @@ export interface Overlay<E = unknown> extends OverlayEventCollection<E> {
    * In drawing, special handling callback when moving events
    */
   performEventMoveForDrawing: Nullable<(params: OverlayPerformEventParams) => void>
+
+  /**
+   * Serialize this overlay to a DTO
+   */
+  toDTO: () => OverlayDTO
 }
 
 export type OverlayTemplate<E = unknown> = ExcludePickPartial<Omit<Overlay<E>, 'id' | 'groupId' | 'paneId' | 'points' | 'currentStep'>, 'name'>
@@ -251,6 +263,7 @@ export default class OverlayImp<E = unknown> implements Overlay<E> {
   mode: OverlayMode = 'normal'
   modeSensitivity = 8
   points: Array<Partial<Point>> = []
+  properties: Record<string, PropertyGroup<Record<string, AnyOverlayProperty>>> = {}
   extendData: E
   styles: Nullable<DeepPartial<OverlayStyle>> = null
   createPointFigures: Nullable<OverlayCreateFiguresCallback<E>> = null
@@ -297,10 +310,15 @@ export default class OverlayImp<E = unknown> implements Overlay<E> {
       currentStep: _,
       points,
       styles,
+      properties,
       ...others
     } = overlay
 
     merge(this, others)
+
+    if (isValid(properties)) {
+      this._setProperties(properties)
+    }
 
     if (!isString(this.name)) {
       this.name = name ?? ''
@@ -455,11 +473,13 @@ export default class OverlayImp<E = unknown> implements Overlay<E> {
       this.points = this._prevPressedPoints.map(p => {
         const newPoint = { ...p }
         if (isNumber(difDataIndex) && (isNumber(p.dataIndex) || isNumber(p.timestamp))) {
-          const dataIndex = isNumber(p.timestamp)
-            ? this.isContinuousDrawingMode()
-              ? chartStore.timestampToFloatIndex(p.timestamp)
-              : chartStore.timestampToDataIndex(p.timestamp)
-            : p.dataIndex!
+          const dataIndex = isNumber(p.dataIndex)
+            ? p.dataIndex
+            : isNumber(p.timestamp)
+              ? this.isContinuousDrawingMode()
+                ? chartStore.timestampToFloatIndex(p.timestamp)
+                : chartStore.timestampToDataIndex(p.timestamp)
+              : 0
           newPoint.dataIndex = dataIndex + difDataIndex
           newPoint.timestamp = this.isContinuousDrawingMode()
             ? chartStore.floatIndexToTimestamp(newPoint.dataIndex) ?? undefined
@@ -471,6 +491,67 @@ export default class OverlayImp<E = unknown> implements Overlay<E> {
         return newPoint
       })
     }
+  }
+
+  private _setProperties (
+    properties: Record<string, PropertyGroup<Record<string, AnyOverlayProperty>>>
+  ): void {
+    Object.keys(properties).forEach(key => {
+      const pg = properties[key]
+      if (isValid(pg)) {
+        this.properties[key] = pg
+      }
+    })
+  }
+
+  getPropertyGroup (key: string): Nullable<PropertyGroup<Record<string, AnyOverlayProperty>>> {
+    return this.properties[key] ?? null
+  }
+
+  toDTO (): OverlayDTO {
+    const props: Record<string, unknown> = {}
+    Object.keys(this.properties).forEach(key => {
+      props[key] = this.properties[key].toJSON()
+    })
+    return {
+      version: 1,
+      id: this.id,
+      name: this.name,
+      groupId: this.groupId,
+      paneId: this.paneId,
+      points: this.points.map(p => ({ ...p })),
+      properties: Object.keys(props).length > 0 ? props : undefined,
+      styles: this.styles,
+      extendData: this.extendData,
+      visible: this.visible,
+      lock: this.lock,
+      zLevel: this.zLevel,
+      mode: this.mode,
+      modeSensitivity: this.modeSensitivity,
+      drawingMode: this.drawingMode,
+      totalStep: this.totalStep
+    }
+  }
+
+  static fromDTO<E = unknown> (dto: OverlayDTO, _chart: Chart): OverlayImp<E> {
+    const template: OverlayTemplate<E> = {
+      name: dto.name,
+      totalStep: dto.totalStep,
+      drawingMode: dto.drawingMode
+    }
+    const overlay = new OverlayImp<E>(template)
+    overlay.id = dto.id
+    overlay.groupId = dto.groupId ?? ''
+    overlay.paneId = dto.paneId ?? ''
+    overlay.points = dto.points.map(p => ({ ...p }))
+    overlay.styles = dto.styles
+    overlay.visible = dto.visible
+    overlay.lock = dto.lock
+    overlay.zLevel = dto.zLevel
+    overlay.mode = dto.mode
+    overlay.modeSensitivity = dto.modeSensitivity
+    overlay.currentStep = -1
+    return overlay
   }
 
   static extend<E = unknown> (template: OverlayTemplate<E>): OverlayInnerConstructor<E> {

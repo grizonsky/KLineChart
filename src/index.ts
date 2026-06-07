@@ -46,7 +46,7 @@ import {
 import { calcTextWidth } from './common/utils/canvas'
 import type { ActionType } from './common/Action'
 import type { IndicatorSeries } from './component/Indicator'
-import type { OverlayMode, OverlayDrawingMode } from './component/Overlay'
+import type { OverlayMode, OverlayDrawingMode, OverlayCreate } from './component/Overlay'
 
 import type { FormatDateType, Options, ZoomAnchor } from './Options'
 import ChartImp, { type Chart, type DomPosition } from './Chart'
@@ -125,19 +125,39 @@ function init (ds: HTMLElement | string, options?: Options | Record<string, unkn
           const iconsContainer = shell.element.querySelector('.klc-right-icons')
           if (iconsContainer !== null) wl.mountToggle(iconsContainer as HTMLElement)
 
-          // Drawing tools (no overlay wiring for now)
-          const ft = new FloatingToolbar(shell, function () { void 0 })
-          ft.mount()
-          const dt = new DrawingToolsWidget(shell, function () { void 0 }, ft)
-          dt.mount()
-
           const chartSlot = shell.getSlot('chart')
+          let ft: Nullable<FloatingToolbar> = null
+          let dt: Nullable<DrawingToolsWidget> = null
           const collection = new ChartCollection(chartSlot, mco as MultiChartOptions, () => {
             rm.dispose()
             wl.dispose()
-            ft.dispose()
+            ft?.dispose()
             shell.destroy()
           })
+
+          // Drawing tools
+          let lastOverlayId: Nullable<string> = null
+          ft = new FloatingToolbar(shell, (opts) => {
+            if (lastOverlayId !== null) {
+              collection.getActiveChart()?.overrideOverlay({
+                id: lastOverlayId,
+                styles: { line: { color: opts.color, size: opts.size, style: opts.lineStyle } }
+              })
+            }
+          })
+          ft.mount()
+          dt = new DrawingToolsWidget(
+            shell,
+            (create: string | OverlayCreate) => {
+              const active = collection.getActiveChart()
+              if (active !== undefined) {
+                const result = active.createOverlay(create)
+                if (typeof result === 'string') lastOverlayId = result
+              }
+            },
+            ft
+          )
+          dt.mount()
           return collection
         }
         const collection = new ChartCollection(dom, mco as MultiChartOptions)

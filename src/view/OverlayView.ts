@@ -499,14 +499,11 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
     const coordinates = points.map(point => {
       let dataIndex: Nullable<number> = null
       if (isContinuous && isNumber(point.timestamp)) {
-        // Use timestampToFloatIndex for sub-bar precision
         dataIndex = chartStore.timestampToFloatIndex(point.timestamp)
-      } else if (isNumber(point.timestamp)) {
-        // For regular overlays, use integer timestamp lookup
-        dataIndex = chartStore.timestampToDataIndex(point.timestamp)
       } else if (isNumber(point.dataIndex)) {
-        // Fallback to dataIndex if no timestamp
         dataIndex = point.dataIndex
+      } else if (isNumber(point.timestamp)) {
+        dataIndex = chartStore.timestampToDataIndex(point.timestamp)
       }
       const coordinate = { x: 0, y: 0 }
       if (isNumber(dataIndex)) {

@@ -55,6 +55,7 @@ import type { YAxis, YAxisOverride } from './component/YAxis'
 
 import type { IndicatorFilter, Indicator, IndicatorCreate, IndicatorOverride } from './component/Indicator'
 import type { OverlayFilter, Overlay, OverlayCreate, OverlayOverride } from './component/Overlay'
+import { validateDrawingStateDTO, DTO_CURRENT_VERSION, type OverlayDTO, type DrawingStateDTO } from './component/OverlayDTO'
 import type ExcludePickPartial from './common/ExcludePickPartial'
 import { DEFAULT_AXIS_ID } from './component/Axis'
 
@@ -110,6 +111,10 @@ export interface Chart extends Store {
   unsubscribeAction: (type: ActionType, callback?: ActionCallback) => void
   getConvertPictureUrl: (includeOverlay?: boolean, type?: 'png' | 'jpeg' | 'bmp', backgroundColor?: string) => string
   resize: () => void
+  exportOverlays: (filter?: OverlayFilter) => string
+  importOverlays: (json: string) => boolean
+  exportDrawingState: () => string
+  importDrawingState: (json: string) => boolean
 }
 
 export default class ChartImp implements Chart {
@@ -1089,6 +1094,55 @@ export default class ChartImp implements Chart {
 
   removeOverlay (filter?: OverlayFilter): boolean {
     return this._chartStore.removeOverlay(filter ?? {})
+  }
+
+  exportOverlays (filter?: OverlayFilter): string {
+    const overlays = this._chartStore.getOverlaysByFilter(filter ?? {})
+    const overlayDTOs: OverlayDTO[] = overlays.map(o => o.toDTO())
+    const state: DrawingStateDTO = {
+      version: DTO_CURRENT_VERSION,
+      overlays: overlayDTOs
+    }
+    return JSON.stringify(state)
+  }
+
+  importOverlays (json: string): boolean {
+    try {
+      const parsed: unknown = JSON.parse(json)
+      if (!validateDrawingStateDTO(parsed)) { return false }
+      const state = parsed
+      const overlays: OverlayCreate[] = []
+      state.overlays.forEach(dto => {
+        const create: OverlayCreate = {
+          name: dto.name,
+          id: dto.id,
+          groupId: dto.groupId,
+          paneId: dto.paneId,
+          points: dto.points,
+          styles: dto.styles,
+          visible: dto.visible,
+          lock: dto.lock,
+          zLevel: dto.zLevel,
+          mode: dto.mode,
+          modeSensitivity: dto.modeSensitivity
+        }
+        overlays.push(create)
+      })
+      if (overlays.length > 0) {
+        this.createOverlay(overlays)
+      }
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  exportDrawingState (): string {
+    return this.exportOverlays()
+  }
+
+  importDrawingState (json: string): boolean {
+    return this.importOverlays(json)
   }
 
   setPaneOptions (options: PaneOptions): void {
