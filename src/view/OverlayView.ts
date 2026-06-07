@@ -25,6 +25,7 @@ import type { OverlayFigure, Overlay } from '../component/Overlay'
 import type OverlayImp from '../component/Overlay'
 import { checkOverlayFigureEvent, OVERLAY_FIGURE_KEY_PREFIX } from '../component/Overlay'
 
+import type ChartStore from '../Store'
 import type { EventOverlayInfoFigureType } from '../Store'
 
 import { PaneIdConstants } from '../pane/types'
@@ -121,17 +122,27 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
           }
         )(event)
       }
-      chartStore.setClickOverlayInfo(
-        {
-          paneId,
-          overlay: null,
-          figureType: 'none',
-          figureIndex: -1,
-          figure: null
-        },
-        (o, f) => this._processOverlaySelectedEvent(o, f, event),
-        (o, f) => this._processOverlayDeselectedEvent(o, f, event)
-      )
+      const yAxis = pane.getYAxisComponentById() as unknown as Nullable<YAxis>
+      const hitInfo = this._findOverlayAt(event, yAxis)
+      if (hitInfo !== null) {
+        chartStore.setClickOverlayInfo(
+          { paneId, overlay: hitInfo.o, figureType: 'point', figureIndex: hitInfo.index, figure: { key: `${OVERLAY_FIGURE_KEY_PREFIX}point_${hitInfo.index}`, type: 'circle', attrs: {} } },
+          (o, f) => this._processOverlaySelectedEvent(o, f, event),
+          (o, f) => this._processOverlayDeselectedEvent(o, f, event)
+        )
+      } else {
+        chartStore.setClickOverlayInfo(
+          {
+            paneId,
+            overlay: null,
+            figureType: 'none',
+            figureIndex: -1,
+            figure: null
+          },
+          (o, f) => this._processOverlaySelectedEvent(o, f, event),
+          (o, f) => this._processOverlayDeselectedEvent(o, f, event)
+        )
+      }
       return false
     }).registerEvent('mouseDoubleClickEvent', event => {
       const progressOverlayInfo = chartStore.getProgressOverlayInfo()
@@ -189,6 +200,14 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
           overlay.onDrawStart?.({ chart, overlay, ...event })
           return true
         }
+      }
+      // Handle overlay drag for completed overlays (points + lines)
+      const yAxis = pane.getYAxisComponentById() as unknown as Nullable<YAxis>
+      const hitInfo = this._findOverlayAt(event, yAxis)
+      if (hitInfo !== null && !hitInfo.o.lock) {
+        hitInfo.o.startPressedMove(this._coordinateToPoint(hitInfo.o, event))
+        chartStore.setPressedOverlayInfo({ paneId, overlay: hitInfo.o, figureType: 'point', figureIndex: hitInfo.index, figure: null })
+        return true
       }
       return false
     }).registerEvent('mouseUpEvent', event => {
@@ -520,6 +539,75 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
       this._drawOverlay(ctx, progressOverlay)
     }
     this._drawMagnetPreview(ctx)
+  }
+
+  private _findOverlayAt (
+    event: MouseTouchEvent,
+    yAxis: Nullable<YAxis>
+  ): Nullable<{ o: OverlayImp; index: number }> {
+    const pane = this.getWidget().getPane()
+    const chart = pane.getChart()
+    const chartStore = chart.getChartStore()
+    const overlays = this.getCompleteOverlays()
+    for (const o of overlays) {
+      if (!o.visible) continue
+      const coords = this._pointsToCoords(o, chartStore, yAxis)
+      // Check point hit (30px)
+      for (let i = 0; i < coords.length; i++) {
+        const dx = event.x - coords[i].x
+        const dy = event.y - coords[i].y
+        if (dx * dx + dy * dy < 900) {
+          return { o, index: i }
+        }
+      }
+      // Check line hit (15px) for connected segments
+      for (let i = 1; i < coords.length; i++) {
+        const ax = coords[i - 1].x; const ay = coords[i - 1].y
+        const bx = coords[i].x; const by = coords[i].y
+        const abx = bx - ax; const aby = by - ay
+        const len2 = abx * abx + aby * aby
+        if (len2 === 0) continue
+        let t = ((event.x - ax) * abx + (event.y - ay) * aby) / len2
+        t = Math.max(0, Math.min(1, t))
+        const px = ax + t * abx
+        const py = ay + t * aby
+        const dx = event.x - px
+        const dy = event.y - py
+        if (dx * dx + dy * dy < 225) {
+          return { o, index: i - 1 }
+        }
+      }
+    }
+    return null
+  }
+
+  private _pointsToCoords (
+    o: OverlayImp,
+    chartStore: ChartStore,
+    yAxis: Nullable<YAxis>
+  ): Coordinate[] {
+    const coords: Coordinate[] = []
+    const isContinuous = o.isContinuousDrawingMode()
+    for (const pt of o.points) {
+      let dataIndex: Nullable<number> = null
+      if (isContinuous && isNumber(pt.timestamp)) {
+        dataIndex = chartStore.timestampToFloatIndex(pt.timestamp)
+      } else if (isNumber(pt.dataIndex)) {
+        dataIndex = pt.dataIndex
+      } else if (isNumber(pt.timestamp)) {
+        dataIndex = chartStore.timestampToDataIndex(pt.timestamp)
+      }
+      let cx = 0
+      let cy = 0
+      if (isNumber(dataIndex)) {
+        cx = chartStore.dataIndexToCoordinate(dataIndex)
+      }
+      if (isNumber(pt.value)) {
+        cy = yAxis?.convertToPixel(pt.value) ?? 0
+      }
+      coords.push({ x: cx, y: cy })
+    }
+    return coords
   }
 
   private _drawMagnetPreview (ctx: CanvasRenderingContext2D): void {
