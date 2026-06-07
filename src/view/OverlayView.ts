@@ -78,65 +78,18 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
         )(event)
       }
       this._magnetPreview = null
-      const completedOverlays = this.getCompleteOverlays()
-      let hitOverlay: Nullable<OverlayImp> = null
-      let hitIndex = -1
-      let hitFigure: Nullable<OverlayFigure> = null
-      for (const o of completedOverlays) {
-        if (!o.visible) continue
-        const yAxis = pane.getYAxisComponentById() as unknown as Nullable<YAxis>
-        const points = o.points
-        const isContinuous = o.isContinuousDrawingMode()
-        for (let i = 0; i < points.length; i++) {
-          const pt = points[i]
-          let dataIndex: Nullable<number> = null
-          if (isContinuous && isNumber(pt.timestamp)) {
-            dataIndex = chartStore.timestampToFloatIndex(pt.timestamp)
-          } else if (isNumber(pt.dataIndex)) {
-            dataIndex = pt.dataIndex
-          } else if (isNumber(pt.timestamp)) {
-            dataIndex = chartStore.timestampToDataIndex(pt.timestamp)
-          }
-          let cx = 0
-          let cy = 0
-          if (isNumber(dataIndex)) {
-            cx = chartStore.dataIndexToCoordinate(dataIndex)
-          }
-          if (isNumber(pt.value)) {
-            cy = yAxis?.convertToPixel(pt.value) ?? 0
-          }
-          const dx = event.x - cx
-          const dy = event.y - cy
-          if (dx * dx + dy * dy < 400) {
-            hitOverlay = o
-            hitIndex = i
-            hitFigure = { key: `${OVERLAY_FIGURE_KEY_PREFIX}point_${i}`, type: 'circle', attrs: {} }
-            break
-          }
-        }
-        if (hitOverlay !== null) break
-      }
-      if (hitOverlay !== null) {
-        chartStore.setHoverOverlayInfo(
-          { paneId, overlay: hitOverlay, figureType: 'point', figureIndex: hitIndex, figure: hitFigure },
-          (o, f) => this._processOverlayMouseEnterEvent(o, f, event),
-          (o, f) => this._processOverlayMouseLeaveEvent(o, f, event)
-        )
-        widget.setForceCursor('pointer')
-      } else {
-        chartStore.setHoverOverlayInfo(
-          {
-            paneId,
-            overlay: null,
-            figureType: 'none',
-            figureIndex: -1,
-            figure: null
-          },
-          (o, f) => this._processOverlayMouseEnterEvent(o, f, event),
-          (o, f) => this._processOverlayMouseLeaveEvent(o, f, event)
-        )
-        widget.setForceCursor(null)
-      }
+      chartStore.setHoverOverlayInfo(
+        {
+          paneId,
+          overlay: null,
+          figureType: 'none',
+          figureIndex: -1,
+          figure: null
+        },
+        (o, f) => this._processOverlayMouseEnterEvent(o, f, event),
+        (o, f) => this._processOverlayMouseLeaveEvent(o, f, event)
+      )
+      widget.setForceCursor(null)
       return false
     }).registerEvent('mouseClickEvent', event => {
       const progressOverlayInfo = chartStore.getProgressOverlayInfo()
