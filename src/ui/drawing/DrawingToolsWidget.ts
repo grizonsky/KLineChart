@@ -1,8 +1,6 @@
-import type Nullable from '../../common/Nullable'
 import type { LayoutShell } from '../core/LayoutShell'
 import { Icons } from '../core/Icons'
-import type { FloatingToolbar, PropertyChangeCallback } from './FloatingToolbar'
-import { createLinePropertyGroup, createPointPropertyGroup } from '../../component/OverlayProperty'
+import type { FloatingToolbar } from './FloatingToolbar'
 
 interface ToolDef {
   name: string
@@ -24,19 +22,12 @@ export class DrawingToolsWidget {
   private readonly _createOverlay: (create: string | object) => void
   private readonly _btns: HTMLElement[] = []
   private readonly _floatingToolbar: FloatingToolbar | null
-  private readonly _onPropertyChange: Nullable<PropertyChangeCallback>
   private _activeIdx = 0
 
-  constructor (
-    shell: LayoutShell,
-    createOverlay: (create: string | object) => void,
-    floatingToolbar?: FloatingToolbar,
-    onPropertyChange?: PropertyChangeCallback
-  ) {
+  constructor (shell: LayoutShell, createOverlay: (create: string | object) => void, floatingToolbar?: FloatingToolbar) {
     this._shell = shell
     this._createOverlay = createOverlay
     this._floatingToolbar = floatingToolbar ?? null
-    this._onPropertyChange = onPropertyChange ?? null
   }
 
   mount (): void {
@@ -77,14 +68,14 @@ export class DrawingToolsWidget {
     if (overlayName !== '') {
       this._floatingToolbar?.show()
       if (this._floatingToolbar !== null) {
-        this._createOverlay({ name: overlayName })
-        this._floatingToolbar.bindProperties(
-          {
-            line: createLinePropertyGroup(),
-            point: createPointPropertyGroup()
-          },
-          this._onPropertyChange
-        )
+        const opts = this._floatingToolbar.options
+        this._createOverlay({
+          name: overlayName,
+          styles: {
+            line: { color: opts.color, size: opts.size, style: opts.lineStyle },
+            point: { color: opts.color, borderColor: opts.color }
+          }
+        })
       } else {
         this._createOverlay(overlayName)
       }

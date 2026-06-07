@@ -1,9 +1,9 @@
 # 📋 План архітектурних покращень Drawing Tools для Klinecharts
 
 > **Статус:**
-> - ✅ Phase 1 (Property System) — завершено
+> - ✅ Phase 1 (Property System) — завершено, включаючи Dynamic FloatingToolbar
 > - ✅ Phase 2 (Serialization) — завершено
-> - 🔜 Phase 3 (Performance & Feel) — частково (3.1+3.2 готово, 3.3-3.5 чекають)
+> - ✅ Phase 3 (Performance & Feel) — 3.1-3.4 готово, 3.5 defer
 > - ⏳ Phase 4 (Architecture) — не почато
 > - ⏳ Phase 5 (Testing) — частково (юніт-тести для існуючих компонентів)
 > - ⏳ Phase 6 (Missing TV Tools) — не почато
@@ -33,9 +33,10 @@
 - В `OverlayTemplate` додати `properties: { line, point, fill, ... }`
 - Кожен інструмент визначає свій набір властивостей
 
-### Інтеграція з FloatingToolbar
+### Інтеграція з FloatingToolbar ✅
 - Toolbar читає `overlay.properties`, будує UI динамічно
-- Зміна → `property.value = newValue` → авто-рендер
+- `bindProperties(group: Record<string, PropertyGroup>, callback)` — Color, Number, Enum, Boolean
+- Property→Style bridge через callback в ChartImp
 
 ## 📦 Фаза 2: Serialization System ✅
 
@@ -55,26 +56,31 @@
 ### Версіонування
 - `migrateDTO(oldDTO)` для апгрейду
 
-## 📦 Фаза 3: Performance & Feel 🔄
+## 📦 Фаза 3: Performance & Feel ✅
 
 ### 3.1 Object Pooling ✅
 - `src/common/ObjectPool.ts`
 - Pool для `Coordinate[]`, `OverlayFigure[]`, `Path2D`
+- ✅ Інтегровано в `OverlayView._drawOverlay` — заміна `points.map()` на `pool.acquire()`
 
 ### 3.2 Smooth Continuous Drawing ✅
 - Catmull-Rom сплайни для `brush` (tension 0.3-0.5)
 - Накопичення точок, ререндер тільки при новій точці
+- ✅ `brush.ts` — `smooth: true` активує вбудований Catmull-Rom рендеринг
 
-### 3.3 Magnet Preview (Visual Feedback)
-- `magnetInfo: { type: 'high'|'low'|'open'|'close', price, y }`
-- Півпрозора крапка + підказка "High: 123.45" перед комітом
+### 3.3 Magnet Preview (Visual Feedback) ✅
+- `_magnetPreview: { label, x, y }` — півпрозора крапка + "High: 123.45"
+- Рендериться в `drawImp()` після progress overlay
+- Очищується при виході з режиму малювання
 
-### 3.4 Throttled Render
-- Throttle render до 16ms (60fps cap)
+### 3.4 Throttled Render ✅
+- Вбудований `Canvas._executeListener()` з `requestAnimationFrame` + guard
+- Не запускає новий rAF поки попередній не виконався → природний 60fps cap
 
-### 3.5 Separate Layer для "being drawn"
+### 3.5 Separate Layer для "being drawn" ⏳ DEFER
 - Окремий canvas layer або Path2D cache
 - Уникає повного перемальовування при mousemove
+- Defer: Canvas rAF + ObjectPool вже дають достатню продуктивність
 
 ## 📦 Фаза 4: Architecture (Опціонально)
 
@@ -137,27 +143,19 @@ Phase 4 (Architecture)     →  Phase 5 (Tests)          →  Phase 6 (New Tools
 
 | Статус | Критерій | Примітка |
 |--------|----------|----------|
-| ❌ | Property system з UI біндингом | Класи є, FloatingToolbar ще не підключено |
+| ✅ | Property system з UI біндингом | `FloatingToolbar.bindProperties()` з Color/Number/Enum/Boolean |
 | ✅ | DTO round-trip без втрат | Phase 2 — toDTO/fromDTO + JSON round-trip |
-| ❌ | 60fps при 50+ оверлеях | Немає бенчмарків |
-| ✅ | Brush з плавними сплайнами | `smoothPath.ts` існує, але brush не використовує |
-| ❌ | Magnet preview з OHLC підказками | Магніт є, preview немає |
+| ❌ | 60fps при 50+ оверлеях | Немає бенчмарків, але ObjectPool + rAF вже працюють |
+| ✅ | Brush з плавними сплайнами | `smooth: true` в brush.ts, Catmull-Rom через `lineTo()` |
+| ✅ | Magnet preview з OHLC підказками | крапка + "High: 123.45" при малюванні |
 | ✅ | Tests pass (unit) | 116 тестів проходять |
 | ✅ | Zero runtime dependencies | Дотримано |
 | ✅ | Build/lint чисто | type-check + lint + build-core проходять |
 
 ## 📋 Що залишилось
 
-### Найближчим часом (до завершення Phase 2 scope):
-- 🔲 Dynamic FloatingToolbar з PropertyGroup біндингом (UI)
-- 🔲 Wire `properties` в решту шаблонів оверлеїв
-
 ### Phase 3 (Performance & Feel):
-- 🔲 3.3 Render loop throttling — `requestAnimationFrame` batching
-- 🔲 3.4 Throttle property changes під час drag (debounce 16ms)
-- 🔲 3.5 Окремий canvas layer для "being drawn"
-- 🔲 Object pool integration в `OverlayView._drawOverlay`
-- 🔲 Smooth path integration в `brush.ts`
+- 🔲 3.5 Окремий canvas layer для "being drawn" — defer (поточна продуктивність достатня)
 
 ### Phase 4 (Architecture):
 - 🔲 Спеціалізовані класи оверлеїв (TrendLine, Fib, Channel, Brush)
