@@ -239,7 +239,29 @@ export default class ChartImp implements Chart {
           const result = this.createOverlay(create)
           if (typeof result === 'string') lastOverlayId = result
         },
-        this._floatingToolbar
+        this._floatingToolbar,
+        (groupKey: string, key: string, value: unknown) => {
+          if (lastOverlayId === null) return
+          const styleKey = groupKey === 'line' ? 'line' : groupKey === 'point' ? 'point' : groupKey === 'fill' ? 'fill' : groupKey
+          if (key === 'color' || key === 'width') {
+            const size = key === 'width' ? Number(value) : undefined
+            const color = key === 'color' ? String(value) : undefined
+            this.overrideOverlay({
+              id: lastOverlayId,
+              styles: { [styleKey]: { ...(color !== undefined ? { color } : {}), ...(size !== undefined ? { size } : {}) } }
+            })
+          } else if (key === 'style') {
+            this.overrideOverlay({
+              id: lastOverlayId,
+              styles: { [styleKey]: { style: String(value) as 'solid' | 'dashed' } }
+            })
+          } else if (key === 'smooth') {
+            this.overrideOverlay({
+              id: lastOverlayId,
+              styles: { line: { smooth: Boolean(value) } }
+            })
+          }
+        }
       )
       this._drawingToolsWidget.mount()
     } else {

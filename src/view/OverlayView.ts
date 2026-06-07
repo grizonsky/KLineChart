@@ -17,6 +17,7 @@ import type Coordinate from '../common/Coordinate'
 import type Point from '../common/Point'
 import type { EventHandler, EventName, MouseTouchEvent, MouseTouchEventCallback } from '../common/EventHandler'
 import { isFunction, isNumber, isValid } from '../common/utils/typeChecks'
+import { createCoordinateArrayPool } from '../common/ObjectPool'
 
 import type { Axis } from '../component/Axis'
 import type { YAxis } from '../component/YAxis'
@@ -33,7 +34,17 @@ import type DrawPane from '../pane/DrawPane'
 
 import View from './View'
 
+interface MagnetPreviewInfo {
+  label: string
+  x: number
+  y: number
+}
+
+const coordinatePool = createCoordinateArrayPool()
+
 export default class OverlayView<C extends Axis = YAxis> extends View<C> {
+  private _magnetPreview: Nullable<MagnetPreviewInfo> = null
+
   constructor (widget: DrawWidget<DrawPane<C>>) {
     super(widget)
     this._initEvent()
@@ -66,6 +77,7 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
           { key: `${OVERLAY_FIGURE_KEY_PREFIX}point_${index}`, type: 'circle', attrs: {} }
         )(event)
       }
+      this._magnetPreview = null
       chartStore.setHoverOverlayInfo(
         {
           paneId,
@@ -401,7 +413,9 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
     }
     if (this.coordinateToPointValueFlag()) {
       const yAxis = pane.getYAxisComponentById()
-      let value = yAxis.convertFromPixel(coordinate.y)
+      const rawValue = yAxis.convertFromPixel(coordinate.y)
+      let value = rawValue
+      this._magnetPreview = null
       if (o.mode !== 'normal' && paneId === PaneIdConstants.CANDLE && isNumber(point.dataIndex)) {
         const kLineData = chartStore.getDataByDataIndex(point.dataIndex)
         if (kLineData !== null) {
@@ -417,6 +431,13 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
             } else {
               value = kLineData.high
             }
+            if (value !== rawValue) {
+              this._magnetPreview = {
+                label: `High: ${kLineData.high}`,
+                x: coordinate.x,
+                y: yAxis.convertToPixel(kLineData.high)
+              }
+            }
           } else if (value < kLineData.low) {
             if (o.mode === 'weak_magnet') {
               const lowY = yAxis.convertToPixel(kLineData.low)
@@ -427,6 +448,13 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
               }
             } else {
               value = kLineData.low
+            }
+            if (value !== rawValue) {
+              this._magnetPreview = {
+                label: `Low: ${kLineData.low}`,
+                x: coordinate.x,
+                y: yAxis.convertToPixel(kLineData.low)
+              }
             }
           } else {
             const max = Math.max(kLineData.open, kLineData.close)
@@ -447,6 +475,14 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
               value = max
             } else {
               value = min
+            }
+            if (value !== rawValue) {
+              const snappedLabel = value === kLineData.open ? 'Open' : value === kLineData.close ? 'Close' : value === kLineData.high ? 'High' : 'Low'
+              this._magnetPreview = {
+                label: `${snappedLabel}: ${value}`,
+                x: coordinate.x,
+                y: yAxis.convertToPixel(value)
+              }
             }
           }
         }
@@ -483,6 +519,30 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
     if (isValid(progressOverlay) && progressOverlay.visible) {
       this._drawOverlay(ctx, progressOverlay)
     }
+    this._drawMagnetPreview(ctx)
+  }
+
+  private _drawMagnetPreview (ctx: CanvasRenderingContext2D): void {
+    const info = this._magnetPreview
+    if (info === null) { return }
+    const { x, y, label } = info
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(x, y, 5, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(22, 119, 255, 0.5)'
+    ctx.fill()
+    ctx.strokeStyle = '#1677FF'
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+    ctx.font = '11px Helvetica Neue, sans-serif'
+    const textWidth = ctx.measureText(label).width
+    const px = x + 10
+    const py = y - 12
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)'
+    ctx.fillRect(px - 4, py - 2, textWidth + 8, 18)
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillText(label, px, py + 12)
+    ctx.restore()
   }
 
   private _drawOverlay (
@@ -496,7 +556,8 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
     const yAxis = pane.getYAxisComponentById() as unknown as Nullable<YAxis>
     // For continuous drawing overlays, use float indices for smooth rendering
     const isContinuous = overlay.isContinuousDrawingMode()
-    const coordinates = points.map(point => {
+    const coordinates = coordinatePool.acquire()
+    for (const point of points) {
       let dataIndex: Nullable<number> = null
       if (isContinuous && isNumber(point.timestamp)) {
         dataIndex = chartStore.timestampToFloatIndex(point.timestamp)
@@ -505,15 +566,15 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
       } else if (isNumber(point.timestamp)) {
         dataIndex = chartStore.timestampToDataIndex(point.timestamp)
       }
-      const coordinate = { x: 0, y: 0 }
+      const coordinate: Coordinate = { x: 0, y: 0 }
       if (isNumber(dataIndex)) {
         coordinate.x = chartStore.dataIndexToCoordinate(dataIndex)
       }
       if (isNumber(point.value)) {
         coordinate.y = yAxis?.convertToPixel(point.value) ?? 0
       }
-      return coordinate
-    })
+      coordinates.push(coordinate)
+    }
     if (coordinates.length > 0) {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- ignore
       // @ts-expect-error
@@ -529,6 +590,7 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
       overlay,
       coordinates
     )
+    coordinatePool.release(coordinates)
   }
 
   protected drawFigures (ctx: CanvasRenderingContext2D, overlay: OverlayImp, figures: OverlayFigure[]): void {

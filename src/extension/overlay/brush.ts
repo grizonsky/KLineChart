@@ -34,7 +34,7 @@ const brush: OverlayTemplate = {
         type: 'line',
         attrs: { coordinates },
         styles: {
-          smooth: false,
+          smooth: true,
           lineCap: 'round',
           lineJoin: 'round'
         }
