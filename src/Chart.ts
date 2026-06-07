@@ -1059,17 +1059,17 @@ export default class ChartImp implements Chart {
       } else {
         appointPaneFlags.push(true)
       }
-      const origOnSelected = overlay.onSelected
-      overlay.onSelected = (params) => {
+      const origOnClick = overlay.onClick
+      overlay.onClick = (params) => {
         this._selectedOverlayId = params.overlay.id
         this._floatingToolbar?.show()
-        origOnSelected?.(params)
+        origOnClick?.(params)
       }
       const origOnDeselected = overlay.onDeselected
-      overlay.onDeselected = (params) => {
+      overlay.onDeselected = (event) => {
         this._selectedOverlayId = null
         this._floatingToolbar?.hide()
-        origOnDeselected?.(params)
+        origOnDeselected?.(event)
       }
       overlays.push(overlay)
     }
