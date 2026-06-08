@@ -37,6 +37,8 @@
 - Toolbar читає `overlay.properties`, будує UI динамічно
 - `bindProperties(group: Record<string, PropertyGroup>, callback)` — Color, Number, Enum, Boolean
 - Property→Style bridge через callback в ChartImp
+- **Hover + selection + drag:** `_findOverlayAt` для завершених оверлеїв в `mouseMoveEvent`/`mouseClickEvent`/`mouseDownEvent` (30px point, 15px line tolerance)
+- `onSelected` → показ FloatingToolbar при кліку на готовий оверлей
 
 ## 📦 Фаза 2: Serialization System ✅
 

@@ -78,6 +78,28 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
           { key: `${OVERLAY_FIGURE_KEY_PREFIX}point_${index}`, type: 'circle', attrs: {} }
         )(event)
       }
+      // Check hover on completed overlays (including line segments)
+      const yAxis = pane.getYAxisComponentById() as unknown as Nullable<YAxis>
+      const hitInfo = this._findOverlayAt(event, yAxis)
+      if (hitInfo !== null && !hitInfo.o.lock) {
+        const figureType = hitInfo.isPoint ? 'point' : 'other'
+        const figureKey = hitInfo.isPoint
+          ? `${OVERLAY_FIGURE_KEY_PREFIX}point_${hitInfo.index}`
+          : `${OVERLAY_FIGURE_KEY_PREFIX}line_${hitInfo.index}`
+        chartStore.setHoverOverlayInfo(
+          {
+            paneId,
+            overlay: hitInfo.o,
+            figureType,
+            figureIndex: hitInfo.index,
+            figure: { key: figureKey, type: hitInfo.isPoint ? 'circle' : 'line', attrs: {} }
+          },
+          (o, f) => this._processOverlayMouseEnterEvent(o, f, event),
+          (o, f) => this._processOverlayMouseLeaveEvent(o, f, event)
+        )
+        widget.setForceCursor('pointer')
+        return true
+      }
       this._magnetPreview = null
       chartStore.setHoverOverlayInfo(
         {
@@ -201,12 +223,18 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
           return true
         }
       }
-      // Handle overlay drag for completed overlays (points + lines)
+      // Handle overlay point drag for completed overlays
       const yAxis = pane.getYAxisComponentById() as unknown as Nullable<YAxis>
       const hitInfo = this._findOverlayAt(event, yAxis)
-      if (hitInfo !== null && !hitInfo.o.lock) {
+      if (hitInfo !== null && hitInfo.isPoint && !hitInfo.o.lock) {
         hitInfo.o.startPressedMove(this._coordinateToPoint(hitInfo.o, event))
         chartStore.setPressedOverlayInfo({ paneId, overlay: hitInfo.o, figureType: 'point', figureIndex: hitInfo.index, figure: null })
+        return true
+      }
+      // Handle overlay line segment drag (click on line, not endpoints)
+      if (hitInfo !== null && !hitInfo.isPoint && !hitInfo.o.lock) {
+        hitInfo.o.startPressedMove(this._coordinateToPoint(hitInfo.o, event))
+        chartStore.setPressedOverlayInfo({ paneId, overlay: hitInfo.o, figureType: 'other', figureIndex: hitInfo.index, figure: null })
         return true
       }
       return false
@@ -544,7 +572,7 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
   private _findOverlayAt (
     event: MouseTouchEvent,
     yAxis: Nullable<YAxis>
-  ): Nullable<{ o: OverlayImp; index: number }> {
+  ): Nullable<{ o: OverlayImp; index: number; isPoint: boolean }> {
     const pane = this.getWidget().getPane()
     const chart = pane.getChart()
     const chartStore = chart.getChartStore()
@@ -557,7 +585,7 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
         const dx = event.x - coords[i].x
         const dy = event.y - coords[i].y
         if (dx * dx + dy * dy < 900) {
-          return { o, index: i }
+          return { o, index: i, isPoint: true }
         }
       }
       // Check line hit (15px) for connected segments
@@ -574,7 +602,7 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
         const dx = event.x - px
         const dy = event.y - py
         if (dx * dx + dy * dy < 225) {
-          return { o, index: i - 1 }
+          return { o, index: i - 1, isPoint: false }
         }
       }
     }

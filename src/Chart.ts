@@ -1059,10 +1059,10 @@ export default class ChartImp implements Chart {
       } else {
         appointPaneFlags.push(true)
       }
-      const origOnClick = overlay.onClick
-      overlay.onClick = (params) => {
+      const origOnSelected = overlay.onSelected
+      overlay.onSelected = (params) => {
         this._floatingToolbar?.show()
-        origOnClick?.(params)
+        origOnSelected?.(params)
       }
       const origOnDeselected = overlay.onDeselected
       overlay.onDeselected = (event) => {
